@@ -264,6 +264,59 @@ body {
   margin-top: 0.5rem;
 }
 
+/* CHECKBOX TOGGLE */
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 0.65rem;
+  cursor: pointer;
+  user-select: none;
+}
+.check-row input[type=checkbox] {
+  width: 17px; height: 17px;
+  accent-color: var(--accent);
+  cursor: pointer;
+  flex-shrink: 0;
+}
+.check-row span { font-size: 0.88rem; color: var(--text); }
+.check-row .check-sub { font-size: 0.75rem; color: var(--muted); }
+
+/* REFORMA SELECTOR */
+.reforma-opcoes {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.75rem;
+}
+.reforma-opt {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+  cursor: pointer;
+  transition: all 0.15s;
+  display: flex;
+  align-items: flex-start;
+  gap: 0.65rem;
+}
+.reforma-opt:hover { border-color: var(--border2); background: var(--surface2); }
+.reforma-opt.selected { border-color: var(--accent); background: var(--accent-light); }
+.reforma-opt input[type=radio] { margin-top: 3px; accent-color: var(--accent); flex-shrink: 0; }
+.reforma-opt-label { font-size: 0.88rem; font-weight: 500; color: var(--text); }
+.reforma-opt-desc { font-size: 0.75rem; color: var(--muted); margin-top: 2px; }
+.reforma-opt.selected .reforma-opt-label { color: var(--accent); }
+
+.custo-info {
+  display: none;
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  padding: 0.75rem 1rem;
+  margin-top: 0.75rem;
+  font-size: 0.82rem;
+  color: var(--muted);
+}
+.custo-info strong { color: var(--text); }
+
 .collapsible-header {
   display: flex;
   justify-content: space-between;
@@ -479,7 +532,53 @@ body {
 
       <div class="field">
         <label>Preço de compra (R$)</label>
-        <input type="number" id="fPreco" placeholder="600000" />
+        <input type="number" id="fPreco" placeholder="600000" oninput="atualizarCustoInfo()" />
+      </div>
+    </div>
+
+    <div class="form-section">
+      <div class="section-label">Custos adicionais</div>
+
+      <div class="field">
+        <label class="check-row" style="margin-bottom:0">
+          <input type="checkbox" id="fImpostos" onchange="atualizarCustoInfo()" />
+          <span>Incluir impostos de transferência (ITBI + cartório)<br><span class="check-sub">5% do preço de compra — entra no valor financiado</span></span>
+        </label>
+      </div>
+
+      <div class="field" style="margin-top:1rem">
+        <label>Estimativa de reforma</label>
+        <div class="reforma-opcoes">
+          <label class="reforma-opt selected" onclick="selecionarReforma(this, 0)">
+            <input type="radio" name="reforma" value="0" checked />
+            <div>
+              <div class="reforma-opt-label">Sem reforma</div>
+              <div class="reforma-opt-desc">Imóvel pronto para uso</div>
+            </div>
+          </label>
+          <label class="reforma-opt" onclick="selecionarReforma(this, 1000)">
+            <input type="radio" name="reforma" value="1000" />
+            <div>
+              <div class="reforma-opt-label">Reforma simples — R$ 1.000/m²</div>
+              <div class="reforma-opt-desc">Pintura, piso, pequenos reparos</div>
+            </div>
+          </label>
+          <label class="reforma-opt" onclick="selecionarReforma(this, 2000)">
+            <input type="radio" name="reforma" value="2000" />
+            <div>
+              <div class="reforma-opt-label">Reforma média — R$ 2.000/m²</div>
+              <div class="reforma-opt-desc">Reforma simples + modernizações pontuais</div>
+            </div>
+          </label>
+          <label class="reforma-opt" onclick="selecionarReforma(this, 3500)">
+            <input type="radio" name="reforma" value="3500" />
+            <div>
+              <div class="reforma-opt-label">Reforma estrutural — R$ 3.500/m²</div>
+              <div class="reforma-opt-desc">Paredes, elétrica, hidráulica, cozinha e banheiros</div>
+            </div>
+          </label>
+        </div>
+        <div class="custo-info" id="custoInfo"></div>
       </div>
     </div>
 
@@ -596,6 +695,38 @@ function showToast(msg) {
   setTimeout(() => t.classList.remove('show'), 2800);
 }
 
+// Reforma
+let reformaM2Atual = 0;
+
+window.selecionarReforma = function(label, m2) {
+  document.querySelectorAll('.reforma-opt').forEach(el => el.classList.remove('selected'));
+  label.classList.add('selected');
+  reformaM2Atual = m2;
+  atualizarCustoInfo();
+}
+
+window.atualizarCustoInfo = function() {
+  const preco = parseFloat(document.getElementById('fPreco').value) || 0;
+  const area = parseFloat(document.getElementById('fArea').value) || 0;
+  const impostos = document.getElementById('fImpostos').checked;
+  const custoInfo = document.getElementById('custoInfo');
+
+  const custoReforma = reformaM2Atual * area;
+  const custoImpostos = impostos ? preco * 0.05 : 0;
+  const custoTotal = custoReforma + custoImpostos;
+
+  if (custoTotal > 0 && preco > 0) {
+    let linhas = [];
+    if (custoImpostos > 0) linhas.push(`Impostos: <strong>${brl(custoImpostos)}</strong> (financiado)`);
+    if (custoReforma > 0) linhas.push(`Reforma (${area}m² × ${brl(reformaM2Atual)}/m²): <strong>${brl(custoReforma)}</strong> (descontado da entrada)`);
+    linhas.push(`Custo total adicional: <strong>${brl(custoTotal)}</strong>`);
+    custoInfo.innerHTML = linhas.join('<br>');
+    custoInfo.style.display = 'block';
+  } else {
+    custoInfo.style.display = 'none';
+  }
+}
+
 function calcSAC(financiado, taxaAnual, meses) {
   const i = Math.pow(1 + taxaAnual / 100, 1/12) - 1;
   const amort = financiado / meses;
@@ -653,8 +784,13 @@ async function carregarLista() {
     imoveis.forEach(im => {
       const qk = qkey(im.quartos);
       const al = getAluguel(im.bairro, qk, im.area);
-      const sac = calcSAC(im.preco - im.entrada, im.taxa, im.prazo * 12);
-      im._yield = (al.medio * 12) / im.preco * 100;
+      const custoReforma = im.custoReforma || 0;
+      const impostos = im.incluirImpostos ? im.preco * 0.05 : 0;
+      const entradaEfetiva = im.entrada - custoReforma;
+      const financiado = (im.preco + impostos) - entradaEfetiva;
+      const custoTotal = im.preco + impostos + custoReforma;
+      const sac = calcSAC(financiado, im.taxa, im.prazo * 12);
+      im._yield = (al.medio * 12) / custoTotal * 100;
       im._aluguel = al.medio;
       im._parcela = sac.media;
       im._saldo = al.medio - sac.media;
@@ -749,6 +885,11 @@ window.irParaForm = function(dados) {
     document.getElementById('fPrazo').value = '10';
     document.getElementById('fLinkBtn').style.display = 'none';
     document.getElementById('bairroNovoAviso').style.display = 'none';
+    document.getElementById('fImpostos').checked = false;
+    document.querySelectorAll('.reforma-opt').forEach((el, i) => { el.classList.toggle('selected', i === 0); });
+    document.querySelectorAll('input[name=reforma]')[0].checked = true;
+    reformaM2Atual = 0;
+    document.getElementById('custoInfo').style.display = 'none';
   }
   preencherDatalist();
 }
@@ -802,11 +943,22 @@ window.calcularEAnalisar = async function() {
   const prazo = parseInt(document.getElementById('fPrazo').value);
   const quartos = document.getElementById('fQuartos').value;
   const link = document.getElementById('fLink').value.trim();
+  const incluirImpostos = document.getElementById('fImpostos').checked;
+  const custoReforma = reformaM2Atual * area;
 
   if (!bairroInput || !area || !preco || !entrada) {
     showToast('Preencha todos os campos obrigatórios'); return;
   }
-  if (preco <= entrada) { showToast('Entrada deve ser menor que o preço'); return; }
+
+  const impostos = incluirImpostos ? preco * 0.05 : 0;
+  const entradaEfetiva = entrada - custoReforma;
+
+  if (entradaEfetiva <= 0) {
+    showToast('Custo da reforma supera o valor de entrada'); return;
+  }
+  if ((preco + impostos) <= entradaEfetiva) {
+    showToast('Entrada deve ser menor que o preço + impostos'); return;
+  }
 
   // Normalizar bairro
   const bairroMatch = bairrosConhecidos.find(b => b.toLowerCase() === bairroInput.toLowerCase());
@@ -820,7 +972,11 @@ window.calcularEAnalisar = async function() {
     showToast(`Bairro "${bairro}" adicionado com estimativas aproximadas`);
   }
 
-  const dados = { bairro, area, preco, entrada, taxa, prazo: parseInt(prazo), quartos: parseInt(quartos), link };
+  const dados = {
+    bairro, area, preco, entrada, taxa,
+    prazo: parseInt(prazo), quartos: parseInt(quartos), link,
+    incluirImpostos, custoReforma, reformaM2: reformaM2Atual
+  };
 
   // Salvar no Firebase
   try {
@@ -847,7 +1003,14 @@ function mostrarAnalise(im) {
 
   const qk = qkey(im.quartos);
   const al = getAluguel(im.bairro, qk, im.area);
-  const financiado = im.preco - im.entrada;
+
+  // Custos extras
+  const custoReforma = im.custoReforma || 0;
+  const impostos = im.incluirImpostos ? im.preco * 0.05 : 0;
+  const entradaEfetiva = im.entrada - custoReforma;
+  const financiado = (im.preco + impostos) - entradaEfetiva;
+  const custoTotalInvestimento = im.preco + impostos + custoReforma;
+
   const meses = im.prazo * 12;
   const sac = calcSAC(financiado, im.taxa, meses);
 
@@ -947,7 +1110,7 @@ function mostrarAnalise(im) {
         <div class="fin-item">
           <div class="fin-item-label">Valor financiado</div>
           <div class="fin-item-value">${brl(financiado)}</div>
-          <div class="fin-item-sub">Entrada: ${brl(im.entrada)}</div>
+          <div class="fin-item-sub">Entrada efetiva: ${brl(entradaEfetiva)}${custoReforma > 0 ? ` (−${brl(custoReforma)} reforma)` : ''}</div>
         </div>
         <div class="fin-item">
           <div class="fin-item-label">Parcela inicial (mês 1)</div>
@@ -965,6 +1128,12 @@ function mostrarAnalise(im) {
           <div class="fin-item-sub">${im.taxa}% a.a. · ${im.prazo} anos · SAC</div>
         </div>
       </div>
+      ${impostos > 0 || custoReforma > 0 ? `
+      <div style="margin-top:0.75rem; background:var(--surface2); border-radius:var(--radius-sm); padding:0.75rem 1rem; font-size:0.8rem; color:var(--muted);">
+        ${impostos > 0 ? `<div>Impostos (ITBI + cartório): <strong style="color:var(--text)">${brl(impostos)}</strong> — incluídos no financiado</div>` : ''}
+        ${custoReforma > 0 ? `<div>Reforma (${im.reformaM2 ? `${brl(im.reformaM2)}/m²` : 'estimada'}): <strong style="color:var(--text)">${brl(custoReforma)}</strong> — descontada da entrada</div>` : ''}
+        <div style="margin-top:4px; padding-top:4px; border-top:1px solid var(--border);">Custo total do investimento: <strong style="color:var(--text)">${brl(custoTotalInvestimento)}</strong></div>
+      </div>` : ''}
     </div>
 
     <div class="analise-section">
@@ -984,10 +1153,11 @@ function mostrarAnalise(im) {
               <td>${c.label}<br><span style="color:var(--muted);font-size:0.75rem">${brl(c.val)}/mês</span></td>
               <td>${rendCell(c.val, sac.inicial)}</td>
               <td>${rendCell(c.val, sac.media)}</td>
-              <td><strong>${(c.val * 12 / im.preco * 100).toFixed(1)}%</strong></td>
+              <td><strong>${(c.val * 12 / custoTotalInvestimento * 100).toFixed(1)}%</strong></td>
             </tr>`).join('')}
         </tbody>
       </table>
+      ${custoTotalInvestimento > im.preco ? `<div style="margin-top:0.75rem;font-size:0.75rem;color:var(--muted);">Yield calculado sobre custo total: ${brl(custoTotalInvestimento)} (preço + impostos + reforma)</div>` : ''}
     </div>
 
     <div class="analise-section">
